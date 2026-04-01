@@ -73,11 +73,62 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
+:: 產生圖示
+echo ▶ 建立捷徑圖示...
+"%VENV_DIR%\Scripts\python" -c "
+from PIL import Image, ImageDraw, ImageFont
+import os
+
+def load_font(size):
+    for path in [
+        r'C:\Windows\Fonts\arialbd.ttf',
+        r'C:\Windows\Fonts\arial.ttf',
+        r'C:\Windows\Fonts\calibrib.ttf',
+        r'C:\Windows\Fonts\segoeui.ttf',
+    ]:
+        if os.path.exists(path):
+            try: return ImageFont.truetype(path, size)
+            except: pass
+    return ImageFont.load_default()
+
+def make_frame(size):
+    img = Image.new('RGBA', (size, size), (0,0,0,0))
+    draw = ImageDraw.Draw(img)
+    pad = max(1, size // 12)
+    r = max(2, size // 4)
+    # 藍色圓角背景
+    draw.rounded_rectangle([pad, pad, size-pad-1, size-pad-1], radius=r, fill=(30, 115, 220, 255))
+    # 掃描線（大圖才加）
+    if size >= 48:
+        for y in range(pad + r + 2, size - pad - r - 2, max(3, size // 20)):
+            draw.line([(pad+r, y), (size-pad-r, y)], fill=(255,255,255,35), width=1)
+    # OCR 文字
+    font = load_font(max(6, int(size * 0.38)))
+    text = 'OCR'
+    bbox = draw.textbbox((0,0), text, font=font)
+    tw, th = bbox[2]-bbox[0], bbox[3]-bbox[1]
+    tx = (size - tw) // 2 - bbox[0]
+    ty = (size - th) // 2 - bbox[1]
+    # 文字陰影
+    if size >= 32:
+        draw.text((tx+1, ty+1), text, font=font, fill=(0,0,0,80))
+    draw.text((tx, ty), text, font=font, fill=(255,255,255,255))
+    return img
+
+frames = [make_frame(s) for s in [16,32,48,256]]
+frames[0].save(r'%~dp0icon.ico', format='ICO', sizes=[(16,16),(32,32),(48,48),(256,256)], append_images=frames[1:])
+print('done')
+" 2>nul
+
+:: 建立桌面捷徑
+echo ▶ 建立桌面捷徑...
+powershell -NoProfile -Command "$s=(New-Object -COM WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Desktop')+'\OCR辨識工具.lnk');$s.TargetPath='%~dp0OCR辨識工具（Windows）.bat';$s.WorkingDirectory='%~dp0';$s.IconLocation='%~dp0icon.ico';$s.WindowStyle=7;$s.Save()"
+
 echo.
 echo ==================================
 echo   ✅ 安裝完成！
 echo ==================================
 echo.
-echo 之後請雙擊「OCR辨識工具（Windows）.bat」啟動
+echo 桌面已建立「OCR辨識工具」捷徑，點兩下即可啟動。
 echo.
 pause
