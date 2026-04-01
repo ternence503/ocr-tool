@@ -1,0 +1,174 @@
+#!/bin/bash
+# OCR 辨識工具 - postinstall script
+
+# ── 取得實際登入使用者（postinstall 以 root 執行）──────────────
+ACTUAL_USER=$(stat -f%Su /dev/console 2>/dev/null)
+if [ -z "$ACTUAL_USER" ] || [ "$ACTUAL_USER" = "root" ]; then
+    ACTUAL_USER=$(logname 2>/dev/null)
+fi
+if [ -z "$ACTUAL_USER" ] || [ "$ACTUAL_USER" = "root" ]; then
+    ACTUAL_USER="$SUDO_USER"
+fi
+ACTUAL_HOME=$(eval echo "~$ACTUAL_USER")
+
+INSTALL_DIR="$ACTUAL_HOME/.ocr-tool"
+VENV_DIR="$INSTALL_DIR/.venv"
+APP_PATH="/Applications/OCR辨識工具.app"
+PAYLOAD_DIR="/Library/Application Support/OCRTool"
+
+run_as_user() {
+    sudo -u "$ACTUAL_USER" "$@"
+}
+
+# ── 尋找相容 Python（3.8–3.12）──────────────────────────────
+PYTHON_BIN=""
+for ver in python3.12 python3.11 python3.10 python3.9 python3.8; do
+    if command -v "$ver" &>/dev/null; then
+        PYTHON_BIN=$(command -v "$ver")
+        break
+    fi
+done
+
+if [ -z "$PYTHON_BIN" ]; then
+    osascript -e 'display dialog "找不到相容的 Python（需要 3.8–3.12）。\n\n請先安裝 Python 3.12 後重新執行安裝程式：\nhttps://www.python.org/downloads/" with title "OCR 辨識工具" buttons {"關閉"} default button "關閉" with icon stop' 2>/dev/null
+    exit 1
+fi
+
+# ── 建立安裝目錄，複製腳本 ────────────────────────────────────
+run_as_user mkdir -p "$INSTALL_DIR"
+run_as_user cp "$PAYLOAD_DIR/ocr.py" "$PAYLOAD_DIR/ocr_ui.py" "$INSTALL_DIR/"
+
+# ── 建立虛擬環境 ──────────────────────────────────────────────
+if [ ! -d "$VENV_DIR" ]; then
+    run_as_user "$PYTHON_BIN" -m venv "$VENV_DIR"
+fi
+
+# ── 安裝套件 ─────────────────────────────────────────────────
+run_as_user "$VENV_DIR/bin/pip" install --upgrade pip -q 2>/dev/null
+run_as_user "$VENV_DIR/bin/pip" install paddlepaddle paddleocr Pillow pymupdf -q 2>/dev/null
+
+if [ $? -ne 0 ]; then
+    osascript -e 'display dialog "套件安裝失敗，請確認網路連線後重新執行安裝程式。" with title "OCR 辨識工具" buttons {"關閉"} default button "關閉" with icon stop' 2>/dev/null
+    exit 1
+fi
+
+# ── 下載辨識模型 ──────────────────────────────────────────────
+run_as_user env PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True \
+    "$VENV_DIR/bin/python3" -c "
+from paddleocr import PaddleOCR
+PaddleOCR(
+    lang='ch',
+    text_detection_model_name='PP-OCRv5_mobile_det',
+    text_recognition_model_name='PP-OCRv5_mobile_rec',
+    use_doc_orientation_classify=False,
+    use_doc_unwarping=False,
+)
+" 2>/dev/null
+
+if [ $? -ne 0 ]; then
+    osascript -e 'display dialog "模型下載失敗，請確認網路連線後重新執行安裝程式。" with title "OCR 辨識工具" buttons {"關閉"} default button "關閉" with icon stop' 2>/dev/null
+    exit 1
+fi
+
+# ── 產生 .icns 圖示 ────────────────────────────────────────────
+ICNS_PATH="$INSTALL_DIR/AppIcon.icns"
+run_as_user env PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True \
+    "$VENV_DIR/bin/python3" -c "
+from PIL import Image, ImageDraw, ImageFont
+import os, subprocess, shutil, tempfile
+
+def load_font(size):
+    for path in [
+        '/Library/Fonts/Arial Unicode.ttf',
+        '/System/Library/Fonts/Geneva.ttf',
+        '/System/Library/Fonts/Monaco.ttf',
+    ]:
+        if os.path.exists(path):
+            try: return ImageFont.truetype(path, size)
+            except: pass
+    return None
+
+def make_frame(size):
+    img = Image.new('RGBA', (size, size), (0,0,0,0))
+    draw = ImageDraw.Draw(img)
+    pad = max(1, size // 12)
+    r = max(2, size // 4)
+    draw.rounded_rectangle([pad, pad, size-pad-1, size-pad-1], radius=r, fill=(30,115,220,255))
+    if size >= 48:
+        for y in range(pad+r+2, size-pad-r-2, max(3, size//20)):
+            draw.line([(pad+r,y),(size-pad-r,y)], fill=(255,255,255,35), width=1)
+    font = load_font(max(6, int(size*0.38)))
+    if font:
+        text = 'OCR'
+        bbox = draw.textbbox((0,0), text, font=font)
+        tw, th = bbox[2]-bbox[0], bbox[3]-bbox[1]
+        tx = (size-tw)//2 - bbox[0]
+        ty = (size-th)//2 - bbox[1]
+        if size >= 32:
+            draw.text((tx+1,ty+1), text, font=font, fill=(0,0,0,80))
+        draw.text((tx,ty), text, font=font, fill=(255,255,255,255))
+    return img
+
+iconset = tempfile.mkdtemp(suffix='.iconset')
+for s, name in [(16,'16x16'),(32,'16x16@2x'),(32,'32x32'),(64,'32x32@2x'),
+                (128,'128x128'),(256,'128x128@2x'),(256,'256x256'),
+                (512,'256x256@2x'),(512,'512x512'),(1024,'512x512@2x')]:
+    make_frame(s).save(f'{iconset}/icon_{name}.png')
+subprocess.run(['iconutil','-c','icns',iconset,'-o','$ICNS_PATH'], check=True)
+shutil.rmtree(iconset)
+" 2>/dev/null
+
+# ── 建立 /Applications/OCR辨識工具.app ───────────────────────
+rm -rf "$APP_PATH"
+mkdir -p "$APP_PATH/Contents/MacOS" "$APP_PATH/Contents/Resources"
+
+# 複製圖示
+if [ -f "$ICNS_PATH" ]; then
+    cp "$ICNS_PATH" "$APP_PATH/Contents/Resources/AppIcon.icns"
+fi
+
+# 執行檔
+cat > "$APP_PATH/Contents/MacOS/OCR辨識工具" << EXEC
+#!/bin/bash
+PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True "$VENV_DIR/bin/python3" "$INSTALL_DIR/ocr_ui.py" 2>/dev/null
+EXEC
+chmod +x "$APP_PATH/Contents/MacOS/OCR辨識工具"
+
+# Info.plist
+cat > "$APP_PATH/Contents/Info.plist" << 'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>OCR辨識工具</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleName</key>
+    <string>OCR辨識工具</string>
+    <key>CFBundleDisplayName</key>
+    <string>OCR 辨識工具</string>
+    <key>CFBundleVersion</key>
+    <string>1.0.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.ternence.ocr-tool</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>11.0</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+</dict>
+</plist>
+PLIST
+
+# 設定正確擁有者
+chown -R "$ACTUAL_USER" "$APP_PATH"
+chown -R "$ACTUAL_USER" "$INSTALL_DIR"
+
+# ── 清理 payload ───────────────────────────────────────────────
+rm -rf "$PAYLOAD_DIR"
+
+exit 0
