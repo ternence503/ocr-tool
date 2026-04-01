@@ -6,6 +6,27 @@ Powered by [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) (Apache 2.0)
 
 ---
 
+## 下載
+
+<table>
+<tr>
+<td align="center">
+<a href="https://github.com/ternence503/ocr-tool/releases/latest/download/OCR辨識工具-Mac.zip">
+<img src="https://img.shields.io/badge/下載-Mac-black?style=for-the-badge&logo=apple" alt="下載 Mac 版"/>
+</a>
+<br/><sub>macOS 11 以上</sub>
+</td>
+<td align="center">
+<a href="https://github.com/ternence503/ocr-tool/releases/latest/download/OCR辨識工具-Windows.zip">
+<img src="https://img.shields.io/badge/下載-Windows-0078D4?style=for-the-badge&logo=windows" alt="下載 Windows 版"/>
+</a>
+<br/><sub>Windows 10 以上</sub>
+</td>
+</tr>
+</table>
+
+---
+
 ## 系統需求
 
 | 項目 | Mac | Windows |
