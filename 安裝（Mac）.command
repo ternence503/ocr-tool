@@ -73,11 +73,86 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# 建立桌面 App
+echo "▶ 建立桌面 App..."
+APP_PATH="$HOME/Desktop/OCR辨識工具.app"
+rm -rf "$APP_PATH"
+mkdir -p "$APP_PATH/Contents/MacOS" "$APP_PATH/Contents/Resources"
+
+# 生成 .icns 圖示
+"$VENV_DIR/bin/python3" -c "
+from PIL import Image, ImageDraw, ImageFont
+import os, subprocess, shutil, tempfile
+
+def load_font(size):
+    for path in [
+        '/Library/Fonts/Arial Unicode.ttf',
+        '/System/Library/Fonts/Geneva.ttf',
+        '/System/Library/Fonts/Monaco.ttf',
+    ]:
+        if os.path.exists(path):
+            try: return ImageFont.truetype(path, size)
+            except: pass
+    return None
+
+def make_frame(size):
+    img = Image.new('RGBA', (size, size), (0,0,0,0))
+    draw = ImageDraw.Draw(img)
+    pad = max(1, size // 12)
+    r = max(2, size // 4)
+    draw.rounded_rectangle([pad, pad, size-pad-1, size-pad-1], radius=r, fill=(30, 115, 220, 255))
+    if size >= 48:
+        for y in range(pad + r + 2, size - pad - r - 2, max(3, size // 20)):
+            draw.line([(pad+r, y), (size-pad-r, y)], fill=(255,255,255,35), width=1)
+    font = load_font(max(6, int(size * 0.38)))
+    if font:
+        text = 'OCR'
+        bbox = draw.textbbox((0,0), text, font=font)
+        tw, th = bbox[2]-bbox[0], bbox[3]-bbox[1]
+        tx = (size - tw) // 2 - bbox[0]
+        ty = (size - th) // 2 - bbox[1]
+        if size >= 32:
+            draw.text((tx+1, ty+1), text, font=font, fill=(0,0,0,80))
+        draw.text((tx, ty), text, font=font, fill=(255,255,255,255))
+    return img
+
+iconset = tempfile.mkdtemp(suffix='.iconset')
+for s, name in [(16,'16x16'),(32,'16x16@2x'),(32,'32x32'),(64,'32x32@2x'),(128,'128x128'),(256,'128x128@2x'),(256,'256x256'),(512,'256x256@2x'),(512,'512x512'),(1024,'512x512@2x')]:
+    make_frame(s).save(f'{iconset}/icon_{name}.png')
+subprocess.run(['iconutil', '-c', 'icns', iconset, '-o', '$APP_PATH/Contents/Resources/AppIcon.icns'], check=True)
+shutil.rmtree(iconset)
+" 2>/dev/null
+
+# 建立執行檔（硬嵌路徑，安裝後勿移動資料夾）
+printf '#!/bin/bash\nPADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True "%s/bin/python3" "%s/ocr_ui.py"\n' \
+    "$VENV_DIR" "$SCRIPT_DIR" > "$APP_PATH/Contents/MacOS/OCR辨識工具"
+chmod +x "$APP_PATH/Contents/MacOS/OCR辨識工具"
+
+# Info.plist
+cat > "$APP_PATH/Contents/Info.plist" << 'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>OCR辨識工具</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleName</key>
+    <string>OCR辨識工具</string>
+    <key>CFBundleVersion</key>
+    <string>1.0.0</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+</dict>
+</plist>
+PLIST
+
 echo ""
 echo "=================================="
 echo "  ✅ 安裝完成！"
 echo "=================================="
 echo ""
-echo "之後請雙擊「OCR辨識工具（Mac）.command」啟動"
+echo "桌面已建立「OCR辨識工具」App，點兩下即可啟動。"
 echo ""
 read -r -p "按 Enter 關閉..."
