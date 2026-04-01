@@ -11,10 +11,10 @@ Powered by [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) (Apache 2.0)
 <table>
 <tr>
 <td align="center">
-<a href="https://github.com/ternence503/ocr-tool/releases/latest/download/ocr-tool-mac.zip">
-<img src="https://img.shields.io/badge/下載-Mac-black?style=for-the-badge&logo=apple" alt="下載 Mac 版"/>
+<a href="https://github.com/ternence503/ocr-tool/releases/latest/download/ocr-tool-mac.pkg">
+<img src="https://img.shields.io/badge/安裝程式-Mac_.pkg-black?style=for-the-badge&logo=apple" alt="下載 Mac 安裝程式"/>
 </a>
-<br/><sub>macOS 11 以上</sub>
+<br/><sub>macOS 11 以上｜雙擊即可安裝</sub>
 </td>
 <td align="center">
 <a href="https://github.com/ternence503/ocr-tool/releases/latest/download/ocr-tool-windows.zip">
@@ -44,18 +44,13 @@ Powered by [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) (Apache 2.0)
 
 ### Mac
 
-1. 下載並解壓縮檔案
-2. 打開「終端機」，執行以下指令開放執行權限（只需做一次）：
-   ```bash
-   chmod +x ~/Downloads/ocr-tool-main/*.command
-   ```
-   > 路徑請依實際解壓位置調整
-3. 雙擊 `安裝（Mac）.command`
-4. 等待安裝完成（約 5–10 分鐘，視網速而定）
-5. 之後雙擊 `OCR辨識工具（Mac）.command` 啟動
+1. 下載 `ocr-tool-mac.pkg`
+2. 雙擊執行，跟隨安裝精靈
+3. 安裝過程會自動下載套件與辨識模型（**約 5–15 分鐘**，請保持網路連線）
+4. 安裝完成後，**OCR 辨識工具** 會出現在「應用程式」資料夾
 
-> 若出現「無法開啟，因為來自未識別的開發者」：
-> 右鍵點選檔案 → 點「開啟」→ 再點「開啟」確認
+> 若出現「無法驗證開發者」：
+> 右鍵點選 .pkg → 點「開啟」→ 再點「開啟」確認
 
 ### Windows
 
