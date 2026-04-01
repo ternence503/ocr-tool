@@ -66,9 +66,8 @@ echo ""
 echo "▶ 下載辨識模型（約需 1–3 分鐘）..."
 PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True "$VENV_DIR/bin/python3" -c "
 from paddleocr import PaddleOCR
-import sys
 print('   下載中文模型...')
-PaddleOCR(lang='ch')
+PaddleOCR(lang='ch', text_detection_model_name='PP-OCRv5_mobile_det', text_recognition_model_name='PP-OCRv5_mobile_rec', use_doc_orientation_classify=False, use_doc_unwarping=False)
 print('   ✅ 中文模型下載完成')
 " 2>/dev/null
 

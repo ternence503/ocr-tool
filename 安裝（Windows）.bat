@@ -65,7 +65,7 @@ echo.
 
 :: 下載模型
 echo ▶ 下載辨識模型（約需 1–3 分鐘）...
-"%VENV_DIR%\Scripts\python" -c "from paddleocr import PaddleOCR; PaddleOCR(lang='ch')" 2>nul
+"%VENV_DIR%\Scripts\python" -c "from paddleocr import PaddleOCR; PaddleOCR(lang='ch', text_detection_model_name='PP-OCRv5_mobile_det', text_recognition_model_name='PP-OCRv5_mobile_rec', use_doc_orientation_classify=False, use_doc_unwarping=False)" 2>nul
 
 if %errorlevel% neq 0 (
     echo ❌ 模型下載失敗，請確認網路連線後重試

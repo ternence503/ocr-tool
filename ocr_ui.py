@@ -16,6 +16,9 @@ APP_NAME = "OCR 辨識工具"
 APP_VERSION = "1.0.0"
 MODEL_DIR = os.path.join(Path.home(), '.paddlex', 'official_models')
 
+# 快取 OCR 實例，避免每次辨識重新載入模型
+_ocr_cache = {}
+
 LANG_OPTIONS = [
     ("繁簡中文", "ch"),
     ("日文",     "japan"),
@@ -46,9 +49,29 @@ def run_ocr(file_path, lang, log_fn):
     else:
         return _ocr_image(file_path, lang, log_fn)
 
+def _get_ocr(lang):
+    import sys
+    global _ocr_cache
+    if lang not in _ocr_cache:
+        from paddleocr import PaddleOCR
+        devnull = open(os.devnull, 'w')
+        old_stderr = sys.stderr
+        sys.stderr = devnull
+        try:
+            _ocr_cache[lang] = PaddleOCR(
+                lang=lang,
+                text_detection_model_name='PP-OCRv5_mobile_det',
+                text_recognition_model_name='PP-OCRv5_mobile_rec',
+                use_doc_orientation_classify=False,
+                use_doc_unwarping=False,
+            )
+        finally:
+            sys.stderr = old_stderr
+            devnull.close()
+    return _ocr_cache[lang]
+
 def _ocr_image(image_path, lang, log_fn):
-    import os, sys
-    from paddleocr import PaddleOCR
+    import sys
     resized_path, msg = resize_if_needed(image_path)
     if msg:
         log_fn(msg)
@@ -57,7 +80,7 @@ def _ocr_image(image_path, lang, log_fn):
     old_stderr = sys.stderr
     sys.stderr = devnull
     try:
-        ocr = PaddleOCR(lang=lang)
+        ocr = _get_ocr(lang)
         result = ocr.predict(resized_path)
     finally:
         sys.stderr = old_stderr
@@ -123,8 +146,7 @@ class DownloadWindow:
     def _download(self):
         try:
             self.status.config(text="下載中文模型...")
-            from paddleocr import PaddleOCR
-            PaddleOCR(lang='ch')
+            _get_ocr('ch')
             self.progress.stop()
             self.status.config(text="✅ 完成！")
             self.win.after(800, self._finish)
