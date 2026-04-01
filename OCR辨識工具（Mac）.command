@@ -1,8 +1,8 @@
 #!/bin/bash
 # OCR 辨識工具 - Mac 啟動腳本
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-VENV_DIR="$SCRIPT_DIR/.venv"
+INSTALL_DIR="$HOME/.ocr-tool"
+VENV_DIR="$INSTALL_DIR/.venv"
 
 # 檢查是否已安裝
 if [ ! -f "$VENV_DIR/bin/python3" ]; then
@@ -13,4 +13,4 @@ if [ ! -f "$VENV_DIR/bin/python3" ]; then
 fi
 
 # 啟動 UI（略過 PaddleOCR 網路連線檢查，加快啟動速度）
-PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True "$VENV_DIR/bin/python3" "$SCRIPT_DIR/ocr_ui.py"
+PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True "$VENV_DIR/bin/python3" "$INSTALL_DIR/ocr_ui.py"

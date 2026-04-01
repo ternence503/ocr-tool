@@ -2,7 +2,8 @@
 # OCR 辨識工具 - Mac 安裝腳本
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-VENV_DIR="$SCRIPT_DIR/.venv"
+INSTALL_DIR="$HOME/.ocr-tool"
+VENV_DIR="$INSTALL_DIR/.venv"
 
 echo "=================================="
 echo "  OCR 辨識工具 - 首次安裝"
@@ -31,6 +32,10 @@ fi
 PYVER=$("$PYTHON_BIN" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 echo "✅ 使用 Python $PYVER（$PYTHON_BIN）"
 echo ""
+
+# 建立安裝目錄，複製腳本進去（之後 zip 可以刪除）
+mkdir -p "$INSTALL_DIR"
+cp "$SCRIPT_DIR/ocr.py" "$SCRIPT_DIR/ocr_ui.py" "$INSTALL_DIR/"
 
 # 建立虛擬環境
 if [ ! -d "$VENV_DIR" ]; then
@@ -73,9 +78,9 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# 建立桌面 App
-echo "▶ 建立桌面 App..."
-APP_PATH="$HOME/Desktop/OCR辨識工具.app"
+# 建立 /Applications App
+echo "▶ 建立應用程式..."
+APP_PATH="/Applications/OCR辨識工具.app"
 rm -rf "$APP_PATH"
 mkdir -p "$APP_PATH/Contents/MacOS" "$APP_PATH/Contents/Resources"
 
@@ -123,9 +128,9 @@ subprocess.run(['iconutil', '-c', 'icns', iconset, '-o', '$APP_PATH/Contents/Res
 shutil.rmtree(iconset)
 " 2>/dev/null
 
-# 建立執行檔（硬嵌路徑，安裝後勿移動資料夾）
+# 建立執行檔（指向固定安裝目錄 ~/.ocr-tool，zip 可刪除）
 printf '#!/bin/bash\nPADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True "%s/bin/python3" "%s/ocr_ui.py"\n' \
-    "$VENV_DIR" "$SCRIPT_DIR" > "$APP_PATH/Contents/MacOS/OCR辨識工具"
+    "$VENV_DIR" "$INSTALL_DIR" > "$APP_PATH/Contents/MacOS/OCR辨識工具"
 chmod +x "$APP_PATH/Contents/MacOS/OCR辨識工具"
 
 # Info.plist
@@ -153,6 +158,7 @@ echo "=================================="
 echo "  ✅ 安裝完成！"
 echo "=================================="
 echo ""
-echo "桌面已建立「OCR辨識工具」App，點兩下即可啟動。"
+echo "已安裝至「應用程式」，從 Launchpad 或 Spotlight 搜尋「OCR」即可啟動。"
+echo "安裝完成後，本資料夾可以刪除或移動，不影響使用。"
 echo ""
 read -r -p "按 Enter 關閉..."
