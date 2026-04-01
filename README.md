@@ -11,9 +11,11 @@ Powered by [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) (Apache 2.0)
 | 項目 | Mac | Windows |
 |------|-----|---------|
 | 系統版本 | macOS 11 以上 | Windows 10 以上 |
-| Python | 內建，不需安裝 | 需安裝 Python 3.8+ |
+| Python | 需安裝 Python 3.8–3.12 | 需安裝 Python 3.8–3.12 |
 | 磁碟空間 | 約 1.5 GB（含模型）| 約 1.5 GB（含模型）|
 | 網路 | 首次安裝需要 | 首次安裝需要 |
+
+> ⚠️ **Python 3.13 以上不相容**，請安裝 [Python 3.12](https://www.python.org/downloads/release/python-3129/)。
 
 ---
 
@@ -22,11 +24,16 @@ Powered by [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) (Apache 2.0)
 ### Mac
 
 1. 下載並解壓縮檔案
-2. 雙擊 `安裝（Mac）.command`
-3. 等待安裝完成（約 5–10 分鐘，視網速而定）
-4. 之後雙擊 `OCR辨識工具（Mac）.command` 啟動
+2. 打開「終端機」，執行以下指令開放執行權限（只需做一次）：
+   ```bash
+   chmod +x ~/Downloads/ocr-tool-main/*.command
+   ```
+   > 路徑請依實際解壓位置調整
+3. 雙擊 `安裝（Mac）.command`
+4. 等待安裝完成（約 5–10 分鐘，視網速而定）
+5. 之後雙擊 `OCR辨識工具（Mac）.command` 啟動
 
-> 若出現「無法開啟，因為來自未識別的開發者」：  
+> 若出現「無法開啟，因為來自未識別的開發者」：
 > 右鍵點選檔案 → 點「開啟」→ 再點「開啟」確認
 
 ### Windows

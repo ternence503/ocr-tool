@@ -12,5 +12,5 @@ if [ ! -f "$VENV_DIR/bin/python3" ]; then
     exit 1
 fi
 
-# 啟動 UI
-"$VENV_DIR/bin/python3" "$SCRIPT_DIR/ocr_ui.py"
+# 啟動 UI（略過 PaddleOCR 網路連線檢查，加快啟動速度）
+PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True "$VENV_DIR/bin/python3" "$SCRIPT_DIR/ocr_ui.py"
