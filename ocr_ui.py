@@ -47,13 +47,21 @@ def run_ocr(file_path, lang, log_fn):
         return _ocr_image(file_path, lang, log_fn)
 
 def _ocr_image(image_path, lang, log_fn):
+    import os, sys
     from paddleocr import PaddleOCR
     resized_path, msg = resize_if_needed(image_path)
     if msg:
         log_fn(msg)
     log_fn("辨識中...")
-    ocr = PaddleOCR(lang=lang)
-    result = ocr.predict(resized_path)
+    devnull = open(os.devnull, 'w')
+    old_stderr = sys.stderr
+    sys.stderr = devnull
+    try:
+        ocr = PaddleOCR(lang=lang)
+        result = ocr.predict(resized_path)
+    finally:
+        sys.stderr = old_stderr
+        devnull.close()
     if resized_path != image_path and os.path.exists(resized_path):
         os.remove(resized_path)
     texts = []

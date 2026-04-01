@@ -13,4 +13,4 @@ if [ ! -f "$VENV_DIR/bin/python3" ]; then
 fi
 
 # 啟動 UI（略過 PaddleOCR 網路連線檢查，加快啟動速度）
-PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True "$VENV_DIR/bin/python3" "$INSTALL_DIR/ocr_ui.py"
+PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True "$VENV_DIR/bin/python3" "$INSTALL_DIR/ocr_ui.py" 2>/dev/null
