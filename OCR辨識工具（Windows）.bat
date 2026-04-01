@@ -8,4 +8,5 @@ if not exist "%VENV_DIR%\Scripts\python.exe" (
     exit /b 1
 )
 
+set PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True
 "%VENV_DIR%\Scripts\python" "%~dp0ocr_ui.py"

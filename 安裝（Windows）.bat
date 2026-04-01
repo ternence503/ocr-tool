@@ -8,10 +8,10 @@ echo.
 :: 檢查 Python
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo ❌ 找不到 Python 3
+    echo ❌ 找不到 Python
     echo.
-    echo 請先安裝 Python 3：
-    echo https://www.python.org/downloads/
+    echo 請安裝 Python 3.12：
+    echo https://www.python.org/downloads/release/python-3129/
     echo.
     echo 安裝時請勾選「Add Python to PATH」
     echo.
@@ -19,7 +19,23 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo ✅ Python 已安裝
+:: 檢查 Python 版本（paddlepaddle 不支援 3.13+）
+for /f "tokens=2" %%v in ('python --version 2^>^&1') do set PYVER=%%v
+for /f "tokens=1,2 delims=." %%a in ("%PYVER%") do (
+    set PY_MAJOR=%%a
+    set PY_MINOR=%%b
+)
+if %PY_MINOR% GTR 12 (
+    echo ❌ Python %PYVER% 不相容（paddlepaddle 需要 3.8–3.12）
+    echo.
+    echo 請安裝 Python 3.12：
+    echo https://www.python.org/downloads/release/python-3129/
+    echo.
+    pause
+    exit /b 1
+)
+
+echo ✅ Python %PYVER% 已安裝
 echo.
 
 :: 建立虛擬環境
