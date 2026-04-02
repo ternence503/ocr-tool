@@ -1,0 +1,45 @@
+name: Build Mac Installer
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build .pkg
+        run: bash installer/build.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ocr-tool-mac-${{ github.ref_name }}
+          path: ocr-tool-mac.pkg
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: OCR 辨識工具 ${{ github.ref_name }}
+          files: ocr-tool-mac.pkg
+          body: |
+            ## OCR 辨識工具 ${{ github.ref_name }}
+
+            ### 安裝方式
+            **Mac**：下載 `ocr-tool-mac.pkg`，雙擊執行安裝精靈
+
+            **Windows**：下載 `ocr-tool-windows.exe`，雙擊執行安裝精靈
+
+            ### 系統需求
+            - macOS 11 以上 / Windows 10 以上
+            - 網路連線（安裝時自動下載所需套件）
