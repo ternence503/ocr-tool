@@ -170,6 +170,7 @@ class OCRApp:
         self.root.geometry("720x640")
         self.root.resizable(True, True)
         self.root.minsize(560, 500)
+        self.root.wm_attributes('-alpha', 1.0)
         self.root.configure(bg='#f0f0f0')
         self.file_path = tk.StringVar()
         self.lang = tk.StringVar(value='ch')
@@ -226,12 +227,14 @@ class OCRApp:
                  font=('Helvetica', 10), fg='#888', bg='#f0f0f0').pack()
 
         # ── 拖曳區域 ──
-        drop_zone = tk.Label(self.root,
+        drop_frame = tk.Frame(self.root, bg='white', relief='solid', bd=1)
+        drop_frame.pack(fill='x', padx=25, pady=(8, 0))
+        drop_zone = tk.Label(drop_frame,
                              text="📂  把檔案拖曳到這裡",
                              font=('Helvetica', 13), fg='#888',
-                             bg='white', relief='solid', bd=1,
-                             height=3, cursor='hand2')
-        drop_zone.pack(fill='x', padx=25, pady=(8, 0))
+                             bg='white', height=3, cursor='hand2')
+        drop_zone.pack(fill='both', expand=True)
+        drop_frame.bind('<Button-1>', lambda e: self._browse())
         drop_zone.bind('<Button-1>', lambda e: self._browse())
 
         # 嘗試啟用拖曳
