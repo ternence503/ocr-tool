@@ -10,19 +10,28 @@ echo "  OCR 辨識工具 - 首次安裝"
 echo "=================================="
 echo ""
 
-# 尋找相容的 Python（3.8–3.12，paddlepaddle 不支援 3.13+）
+# 尋找相容的 Python（需要 3.8–3.12，PaddlePaddle 尚未支援 3.13+）
 PYTHON_BIN=""
-for ver in python3.12 python3.11 python3.10 python3.9 python3.8; do
-    if command -v "$ver" &>/dev/null; then
-        PYTHON_BIN=$(command -v "$ver")
-        break
+for candidate in python3.12 python3.11 python3.10 python3.9 python3.8 python3; do
+    bin_path=$(command -v "$candidate" 2>/dev/null)
+    if [ -z "$bin_path" ]; then
+        for prefix in /opt/homebrew/bin /usr/local/bin; do
+            [ -x "$prefix/$candidate" ] && bin_path="$prefix/$candidate" && break
+        done
+    fi
+    if [ -n "$bin_path" ]; then
+        ver=$("$bin_path" -c 'import sys; print(sys.version_info.major * 10 + sys.version_info.minor)' 2>/dev/null)
+        if [ -n "$ver" ] && [ "$ver" -ge 38 ] && [ "$ver" -le 312 ]; then
+            PYTHON_BIN="$bin_path"
+            break
+        fi
     fi
 done
 
 if [ -z "$PYTHON_BIN" ]; then
     echo "❌ 找不到相容的 Python（需要 3.8–3.12）"
     echo ""
-    echo "請安裝 Python 3.12："
+    echo "請先安裝 Python 3.12："
     echo "https://www.python.org/downloads/"
     echo ""
     read -r -p "按 Enter 關閉..."
