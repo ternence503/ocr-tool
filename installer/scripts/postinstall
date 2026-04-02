@@ -121,8 +121,9 @@ sleep 0.8
 
 # ── 建立安裝目錄，複製腳本 ────────────────────────────────────
 log_step "  📁 [2/5] 準備安裝目錄..."
-sudo -u "$ACTUAL_USER" mkdir -p "$INSTALL_DIR"
-sudo -u "$ACTUAL_USER" cp "$PAYLOAD_DIR/ocr.py" "$PAYLOAD_DIR/ocr_ui.py" "$INSTALL_DIR/"
+mkdir -p "$INSTALL_DIR"
+cp "$PAYLOAD_DIR/ocr.py" "$PAYLOAD_DIR/ocr_ui.py" "$INSTALL_DIR/"
+chown "$ACTUAL_USER" "$INSTALL_DIR/ocr.py" "$INSTALL_DIR/ocr_ui.py"
 
 # ── 建立虛擬環境 ──────────────────────────────────────────────
 if [ ! -d "$VENV_DIR" ]; then
