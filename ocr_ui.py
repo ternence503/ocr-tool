@@ -169,6 +169,7 @@ class OCRApp:
         self.root.title(APP_NAME)
         self.root.geometry("720x640")
         self.root.resizable(True, True)
+        self.root.minsize(560, 500)
         self.root.configure(bg='#f0f0f0')
         self.file_path = tk.StringVar()
         self.lang = tk.StringVar(value='ch')
@@ -213,9 +214,9 @@ class OCRApp:
                  bg='#f0f0f0').pack(side='left')
 
         self.file_entry = tk.Entry(file_frame, textvariable=self.file_path,
-                                   font=('Helvetica', 12), width=44,
+                                   font=('Helvetica', 12),
                                    relief='solid', bd=1)
-        self.file_entry.pack(side='left', padx=(5, 8), ipady=4)
+        self.file_entry.pack(side='left', padx=(5, 8), ipady=4, fill='x', expand=True)
 
         ttk.Button(file_frame, text="選擇檔案", command=self._browse,
                    style='Blue.TButton').pack(side='left')
