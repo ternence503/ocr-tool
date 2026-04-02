@@ -214,13 +214,13 @@ class OCRApp:
         tk.Label(file_frame, text="檔案：", font=('Helvetica', 13),
                  bg='#f0f0f0').pack(side='left')
 
+        ttk.Button(file_frame, text="選擇檔案", command=self._browse,
+                   style='Blue.TButton').pack(side='right')
+
         self.file_entry = tk.Entry(file_frame, textvariable=self.file_path,
                                    font=('Helvetica', 12),
                                    relief='solid', bd=1)
         self.file_entry.pack(side='left', padx=(5, 8), ipady=4, fill='x', expand=True)
-
-        ttk.Button(file_frame, text="選擇檔案", command=self._browse,
-                   style='Blue.TButton').pack(side='left')
 
         # 拖曳提示
         tk.Label(self.root, text="支援 JPG・PNG・PDF　（可直接拖曳檔案到視窗）",
@@ -260,8 +260,8 @@ class OCRApp:
                                   style='Green.TButton')
         self.run_btn.pack(pady=(4, 6), ipadx=20)
 
-        self.progress = ttk.Progressbar(self.root, mode='indeterminate', length=440)
-        self.progress.pack(pady=(0, 6))
+        self.progress = ttk.Progressbar(self.root, mode='indeterminate')
+        self.progress.pack(fill='x', padx=25, pady=(0, 6))
 
         # ── 結果區 ──
         result_header = tk.Frame(self.root, bg='#f0f0f0')
