@@ -15,7 +15,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install NSIS
-        run: choco install nsis --yes --no-progress
+        shell: pwsh
+        run: |
+          choco install nsis --yes --no-progress
+          echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Copy source files to installer directory
         shell: pwsh
