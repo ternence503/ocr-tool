@@ -1,28 +1,24 @@
 #!/bin/bash
-# OCR 辨識工具 - postinstall script
+# OCR 辨識工具 - postinstall
+# 以 root 執行，全程不使用 sudo -u
 
 ACTUAL_USER=$(stat -f%Su /dev/console 2>/dev/null)
-if [ -z "$ACTUAL_USER" ] || [ "$ACTUAL_USER" = "root" ]; then
-    ACTUAL_USER=$(logname 2>/dev/null)
-fi
-if [ -z "$ACTUAL_USER" ] || [ "$ACTUAL_USER" = "root" ]; then
-    ACTUAL_USER="$SUDO_USER"
-fi
+[ -z "$ACTUAL_USER" ] || [ "$ACTUAL_USER" = "root" ] && ACTUAL_USER=$(logname 2>/dev/null)
+[ -z "$ACTUAL_USER" ] || [ "$ACTUAL_USER" = "root" ] && ACTUAL_USER="$SUDO_USER"
 ACTUAL_HOME=$(eval echo "~$ACTUAL_USER")
 
 INSTALL_DIR="$ACTUAL_HOME/.ocr-tool"
 VENV_DIR="$INSTALL_DIR/.venv"
-# 用 printf 組合含中文的路徑，避免腳本編碼問題
 APP_NAME=$(printf '\xe8\xbe\xa8\xe8\xad\x98\xe5\xb7\xa5\xe5\x85\xb7')
 APP_PATH="/Applications/OCR${APP_NAME}.app"
 PAYLOAD_DIR="/Library/Application Support/OCRTool"
 
-show_error() {
-    sudo -u "$ACTUAL_USER" osascript -e "display dialog \"$1\" with title \"OCR Tool\" buttons {\"OK\"} default button \"OK\" with icon stop" 2>/dev/null || true
-    exit 1
-}
+# 寫 log 方便偵錯
+LOG="/tmp/ocr_install_$$.log"
+exec > "$LOG" 2>&1
+set -x
 
-# ── 尋找相容 Python（3.8–3.12）──────────────────────────────
+# ── 尋找相容 Python（3.8–3.12）
 PYTHON_BIN=""
 for candidate in python3.12 python3.11 python3.10 python3.9 python3.8; do
     bin_path=$(command -v "$candidate" 2>/dev/null)
@@ -31,97 +27,83 @@ for candidate in python3.12 python3.11 python3.10 python3.9 python3.8; do
             [ -x "$prefix/$candidate" ] && bin_path="$prefix/$candidate" && break
         done
     fi
-    if [ -n "$bin_path" ]; then
-        PYTHON_BIN="$bin_path"
-        break
-    fi
+    [ -n "$bin_path" ] && PYTHON_BIN="$bin_path" && break
 done
 
 if [ -z "$PYTHON_BIN" ]; then
-    sudo -u "$ACTUAL_USER" open "https://www.python.org/downloads/release/python-3129/" || true
+    open "https://www.python.org/downloads/release/python-3129/" 2>/dev/null || true
     exit 1
 fi
 
-# ── 建立安裝目錄，複製腳本 ────────────────────────────────────
+# ── 建立安裝目錄
 mkdir -p "$INSTALL_DIR"
-cp "$PAYLOAD_DIR/ocr.py" "$PAYLOAD_DIR/ocr_ui.py" "$INSTALL_DIR/" || show_error "File copy failed. Please try again."
-chown "$ACTUAL_USER" "$INSTALL_DIR/ocr.py" "$INSTALL_DIR/ocr_ui.py"
+cp "$PAYLOAD_DIR/ocr.py" "$PAYLOAD_DIR/ocr_ui.py" "$INSTALL_DIR/" || exit 1
 
-# ── 建立虛擬環境 ──────────────────────────────────────────────
+# ── 建立虛擬環境
 if [ ! -d "$VENV_DIR" ]; then
-    "$PYTHON_BIN" -m venv "$VENV_DIR" || show_error "Failed to create virtual environment."
-    chown -R "$ACTUAL_USER" "$VENV_DIR"
+    "$PYTHON_BIN" -m venv "$VENV_DIR" || exit 1
 fi
-[ ! -f "$VENV_DIR/bin/pip" ] && show_error "Failed to create virtual environment."
+[ ! -f "$VENV_DIR/bin/pip" ] && exit 1
 
-# ── 安裝套件 ─────────────────────────────────────────────────
-sudo -u "$ACTUAL_USER" "$VENV_DIR/bin/pip" install --upgrade pip -q 2>/dev/null
-sudo -u "$ACTUAL_USER" "$VENV_DIR/bin/pip" install paddlepaddle paddleocr Pillow pymupdf -q 2>/dev/null
-[ $? -ne 0 ] && show_error "Package installation failed. Please check your internet connection."
+# ── 安裝套件（以 root 執行 pip，裝到 venv 裡）
+"$VENV_DIR/bin/pip" install --upgrade pip -q
+"$VENV_DIR/bin/pip" install paddlepaddle paddleocr Pillow pymupdf -q || exit 1
 
-# ── 下載辨識模型 ──────────────────────────────────────────────
-sudo -u "$ACTUAL_USER" env PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True \
+# ── 下載辨識模型
+PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True \
     "$VENV_DIR/bin/python3" -c "
 from paddleocr import PaddleOCR
 PaddleOCR(lang='ch',text_detection_model_name='PP-OCRv5_mobile_det',text_recognition_model_name='PP-OCRv5_mobile_rec',use_doc_orientation_classify=False,use_doc_unwarping=False)
-" 2>/dev/null
-[ $? -ne 0 ] && show_error "Model download failed. Please check your internet connection."
+" || exit 1
 
-# ── 建立 .app ─────────────────────────────────────────────────
+# ── 建立 .app
 ICNS_PATH="$INSTALL_DIR/AppIcon.icns"
-sudo -u "$ACTUAL_USER" env PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True \
+PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True \
     "$VENV_DIR/bin/python3" -c "
 from PIL import Image, ImageDraw, ImageFont
 import os, subprocess, shutil, tempfile
-
 def load_font(size):
-    for path in ['/Library/Fonts/Arial Unicode.ttf','/System/Library/Fonts/Geneva.ttf','/System/Library/Fonts/Monaco.ttf']:
-        if os.path.exists(path):
-            try: return ImageFont.truetype(path, size)
+    for p in ['/Library/Fonts/Arial Unicode.ttf','/System/Library/Fonts/Geneva.ttf','/System/Library/Fonts/Monaco.ttf']:
+        if os.path.exists(p):
+            try: return ImageFont.truetype(p, size)
             except: pass
     return None
-
 def make_frame(size):
-    img = Image.new('RGBA', (size, size), (0,0,0,0))
-    draw = ImageDraw.Draw(img)
-    pad = max(1, size//12); r = max(2, size//4)
-    draw.rounded_rectangle([pad, pad, size-pad-1, size-pad-1], radius=r, fill=(30,115,220,255))
-    if size >= 48:
-        for y in range(pad+r+2, size-pad-r-2, max(3, size//20)):
-            draw.line([(pad+r,y),(size-pad-r,y)], fill=(255,255,255,35), width=1)
-    font = load_font(max(6, int(size*0.38)))
-    if font:
-        text = 'OCR'
-        bbox = draw.textbbox((0,0), text, font=font)
-        tw, th = bbox[2]-bbox[0], bbox[3]-bbox[1]
-        tx = (size-tw)//2 - bbox[0]; ty = (size-th)//2 - bbox[1]
-        if size >= 32: draw.text((tx+1,ty+1), text, font=font, fill=(0,0,0,80))
-        draw.text((tx,ty), text, font=font, fill=(255,255,255,255))
+    img = Image.new('RGBA',(size,size),(0,0,0,0))
+    d = ImageDraw.Draw(img)
+    pad=max(1,size//12); r=max(2,size//4)
+    d.rounded_rectangle([pad,pad,size-pad-1,size-pad-1],radius=r,fill=(30,115,220,255))
+    if size>=48:
+        for y in range(pad+r+2,size-pad-r-2,max(3,size//20)):
+            d.line([(pad+r,y),(size-pad-r,y)],fill=(255,255,255,35),width=1)
+    f=load_font(max(6,int(size*0.38)))
+    if f:
+        bb=d.textbbox((0,0),'OCR',font=f)
+        tw,th=bb[2]-bb[0],bb[3]-bb[1]
+        tx=(size-tw)//2-bb[0]; ty=(size-th)//2-bb[1]
+        if size>=32: d.text((tx+1,ty+1),'OCR',font=f,fill=(0,0,0,80))
+        d.text((tx,ty),'OCR',font=f,fill=(255,255,255,255))
     return img
-
-iconset = tempfile.mkdtemp(suffix='.iconset')
-for s, name in [(16,'16x16'),(32,'16x16@2x'),(32,'32x32'),(64,'32x32@2x'),(128,'128x128'),(256,'128x128@2x'),(256,'256x256'),(512,'256x256@2x'),(512,'512x512'),(1024,'512x512@2x')]:
-    make_frame(s).save(f'{iconset}/icon_{name}.png')
-subprocess.run(['iconutil','-c','icns',iconset,'-o','$ICNS_PATH'], check=True)
-shutil.rmtree(iconset)
+ic=tempfile.mkdtemp(suffix='.iconset')
+for s,n in [(16,'16x16'),(32,'16x16@2x'),(32,'32x32'),(64,'32x32@2x'),(128,'128x128'),(256,'128x128@2x'),(256,'256x256'),(512,'256x256@2x'),(512,'512x512'),(1024,'512x512@2x')]:
+    make_frame(s).save(f'{ic}/icon_{n}.png')
+subprocess.run(['iconutil','-c','icns',ic,'-o','$ICNS_PATH'],check=True)
+shutil.rmtree(ic)
 " 2>/dev/null || true
 
 rm -rf "$APP_PATH"
 mkdir -p "$APP_PATH/Contents/MacOS" "$APP_PATH/Contents/Resources"
 [ -f "$ICNS_PATH" ] && cp "$ICNS_PATH" "$APP_PATH/Contents/Resources/AppIcon.icns"
 
-EXEC_PATH="$APP_PATH/Contents/MacOS/OCR${APP_NAME}"
-cat > "$EXEC_PATH" << EXEC
-#!/bin/bash
-PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True "$VENV_DIR/bin/python3" "$INSTALL_DIR/ocr_ui.py" 2>/dev/null
-EXEC
-chmod +x "$EXEC_PATH"
+EXEC_FILE="$APP_PATH/Contents/MacOS/OCR${APP_NAME}"
+printf '#!/bin/bash\nPADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True "%s/bin/python3" "%s/ocr_ui.py" 2>/dev/null\n' \
+    "$VENV_DIR" "$INSTALL_DIR" > "$EXEC_FILE"
+chmod +x "$EXEC_FILE"
 
 cat > "$APP_PATH/Contents/Info.plist" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
+<plist version="1.0"><dict>
     <key>CFBundleExecutable</key><string>OCR${APP_NAME}</string>
     <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundleName</key><string>OCR${APP_NAME}</string>
@@ -132,13 +114,11 @@ cat > "$APP_PATH/Contents/Info.plist" << PLIST
     <key>CFBundleIdentifier</key><string>com.ternence.ocr-tool</string>
     <key>LSMinimumSystemVersion</key><string>11.0</string>
     <key>NSHighResolutionCapable</key><true/>
-</dict>
-</plist>
+</dict></plist>
 PLIST
 
+# ── 把所有檔案歸還給使用者
 chown -R "$ACTUAL_USER" "$APP_PATH" "$INSTALL_DIR"
 rm -rf "$PAYLOAD_DIR"
-
-sudo -u "$ACTUAL_USER" osascript -e 'display notification "OCR Tool installed. Launch from Launchpad." with title "Installation Complete"' 2>/dev/null || true
 
 exit 0
