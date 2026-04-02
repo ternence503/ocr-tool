@@ -17,10 +17,10 @@ Powered by [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) (Apache 2.0)
 <br/><sub>macOS 11 以上｜雙擊即可安裝</sub>
 </td>
 <td align="center">
-<a href="https://github.com/ternence503/ocr-tool/releases/latest/download/ocr-tool-windows.zip">
-<img src="https://img.shields.io/badge/下載-Windows-0078D4?style=for-the-badge&logo=windows" alt="下載 Windows 版"/>
+<a href="https://github.com/ternence503/ocr-tool/releases/latest/download/ocr-tool-windows.exe">
+<img src="https://img.shields.io/badge/安裝程式-Windows_.exe-0078D4?style=for-the-badge&logo=windows" alt="下載 Windows 安裝程式"/>
 </a>
-<br/><sub>Windows 10 以上</sub>
+<br/><sub>Windows 10 以上｜雙擊即可安裝</sub>
 </td>
 </tr>
 </table>
@@ -32,15 +32,22 @@ Powered by [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) (Apache 2.0)
 | 項目 | Mac | Windows |
 |------|-----|---------|
 | 系統版本 | macOS 11 以上 | Windows 10 以上 |
-| Python | 需安裝 Python 3.8–3.12 | 需安裝 Python 3.8–3.12 |
+| Python | 需安裝 Python 3.8–3.12 | 安裝程式自動處理，無需手動安裝 |
 | 磁碟空間 | 約 1.5 GB（含模型）| 約 1.5 GB（含模型）|
 | 網路 | 首次安裝需要 | 首次安裝需要 |
-
-> ⚠️ **Python 3.13 以上不相容**，請安裝 [Python 3.12](https://www.python.org/downloads/release/python-3129/)。
 
 ---
 
 ## 安裝步驟
+
+### Windows
+
+1. 下載 `ocr-tool-windows.exe`
+2. 雙擊執行安裝精靈
+3. 安裝程式會自動完成所有設定（**約 5–15 分鐘**，請保持網路連線）
+4. 安裝完成後桌面會建立「OCR辨識工具」捷徑，點兩下即可啟動
+
+> 若出現「Windows 已保護您的電腦」提示：點「更多資訊」→「仍要執行」
 
 ### Mac
 
@@ -49,17 +56,7 @@ Powered by [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) (Apache 2.0)
 3. 安裝過程會自動下載套件與辨識模型（**約 5–15 分鐘**，請保持網路連線）
 4. 安裝完成後，**OCR 辨識工具** 會出現在「應用程式」資料夾
 
-> 若出現「無法驗證開發者」：
-> 右鍵點選 .pkg → 點「開啟」→ 再點「開啟」確認
-
-### Windows
-
-1. 下載並解壓縮檔案
-2. 確認已安裝 [Python 3.8+](https://www.python.org/downloads/)  
-   ⚠️ 安裝 Python 時請勾選「**Add Python to PATH**」
-3. 雙擊 `安裝（Windows）.bat`
-4. 等待安裝完成（約 5–10 分鐘）
-5. 之後雙擊 `OCR辨識工具（Windows）.bat` 啟動
+> 若出現「無法驗證開發者」：右鍵點選 .pkg → 點「開啟」→ 再點「開啟」確認
 
 ---
 
@@ -85,16 +82,19 @@ Powered by [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) (Apache 2.0)
 
 ## 常見問題
 
-**Q：第一次啟動很慢？**  
+**Q：出現「Windows 已保護您的電腦」怎麼辦？**
+A：點「更多資訊」→「仍要執行」即可。這是 Windows 對未經微軟認證的程式的標準提示。
+
+**Q：第一次啟動很慢？**
 A：首次使用日文或英文時會自動下載對應模型（約 200MB），之後即可離線使用。
 
-**Q：圖片太大辨識很慢？**  
+**Q：圖片太大辨識很慢？**
 A：超過 2000px 的圖片會自動縮小再辨識，不影響準確率。
 
-**Q：辨識結果存在哪裡？**  
+**Q：辨識結果存在哪裡？**
 A：自動儲存在原圖片同一個資料夾，檔名為 `原檔名_ocr.txt`，也可手動點「儲存 TXT」另存。
 
-**Q：Mac 說「無法驗證開發者」怎麼辦？**  
+**Q：Mac 說「無法驗證開發者」怎麼辦？**
 A：系統偏好設定 → 安全性與隱私 → 點「仍要開啟」。
 
 ---
