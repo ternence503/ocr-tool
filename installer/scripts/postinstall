@@ -127,22 +127,34 @@ chown "$ACTUAL_USER" "$INSTALL_DIR/ocr.py" "$INSTALL_DIR/ocr_ui.py"
 
 # ── 建立虛擬環境 ──────────────────────────────────────────────
 if [ ! -d "$VENV_DIR" ]; then
-    sudo -u "$ACTUAL_USER" "$PYTHON_BIN" -m venv "$VENV_DIR"
+    "$PYTHON_BIN" -m venv "$VENV_DIR"
+    chown -R "$ACTUAL_USER" "$VENV_DIR"
+fi
+
+if [ ! -f "$VENV_DIR/bin/pip" ]; then
+    echo "虛擬環境建立失敗，請重新執行安裝程式" > "$DONE_FILE"
+    sleep 2
+    osascript -e 'display dialog "虛擬環境建立失敗，請重新執行安裝程式。" with title "OCR 辨識工具" buttons {"關閉"} default button "關閉" with icon stop' 2>/dev/null
+    exit 1
 fi
 log_step "  ✅ [2/5] 安裝目錄準備完成"
 sleep 0.8
 
 # ── 安裝套件 ─────────────────────────────────────────────────
 log_step "  📦 [3/5] 下載並安裝必要套件（約需 3–5 分鐘）..."
-sudo -u "$ACTUAL_USER" "$VENV_DIR/bin/pip" install --upgrade pip -q 2>/dev/null
-sudo -u "$ACTUAL_USER" "$VENV_DIR/bin/pip" install paddlepaddle paddleocr Pillow pymupdf -q 2>/dev/null
+PIP_ERR_LOG="/tmp/ocr_pip_err_$$.log"
+sudo -u "$ACTUAL_USER" "$VENV_DIR/bin/pip" install --upgrade pip -q 2>>"$PIP_ERR_LOG"
+sudo -u "$ACTUAL_USER" "$VENV_DIR/bin/pip" install paddlepaddle paddleocr Pillow pymupdf -q 2>>"$PIP_ERR_LOG"
 
 if [ $? -ne 0 ]; then
-    echo "套件安裝失敗，請確認網路連線後重試" > "$DONE_FILE"
+    PIP_MSG=$(tail -5 "$PIP_ERR_LOG" 2>/dev/null | tr '\n' ' ')
+    echo "套件安裝失敗：$PIP_MSG" > "$DONE_FILE"
     sleep 2
-    osascript -e 'display dialog "套件安裝失敗，請確認網路連線後重新執行安裝程式。" with title "OCR 辨識工具" buttons {"關閉"} default button "關閉" with icon stop' 2>/dev/null
+    osascript -e "display dialog \"套件安裝失敗。\n\n錯誤：$PIP_MSG\n\n請確認網路連線後重新執行安裝程式。\" with title \"OCR 辨識工具\" buttons {\"關閉\"} default button \"關閉\" with icon stop" 2>/dev/null
+    rm -f "$PIP_ERR_LOG"
     exit 1
 fi
+rm -f "$PIP_ERR_LOG"
 log_step "  ✅ [3/5] 套件安裝完成"
 sleep 0.8
 
