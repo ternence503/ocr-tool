@@ -1,7 +1,58 @@
-name: Test
-on: [push]
+name: Build Windows Installer
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: windows-latest
+
     steps:
-      - run: echo hello
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install NSIS
+        run: choco install nsis --yes --no-progress
+
+      - name: Copy source files to installer directory
+        shell: pwsh
+        run: |
+          Copy-Item "ocr.py"                   "installer\windows\"
+          Copy-Item "ocr_ui.py"                "installer\windows\"
+          Copy-Item "OCR辨識工具（Windows）.bat" "installer\windows\"
+          Copy-Item "安裝（Windows）.bat"        "installer\windows\"
+
+      - name: Build NSIS installer
+        shell: cmd
+        run: |
+          cd installer\windows
+          makensis installer.nsi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ocr-tool-windows-${{ github.ref_name }}
+          path: installer\windows\ocr-tool-windows.exe
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: OCR 辨識工具 ${{ github.ref_name }}
+          files: installer\windows\ocr-tool-windows.exe
+          body: |
+            ## OCR 辨識工具 ${{ github.ref_name }}
+
+            ### 安裝方式
+            1. 下載 `ocr-tool-windows.exe`
+            2. 雙擊執行安裝精靈
+            3. 安裝過程會自動下載套件與辨識模型（約 5–15 分鐘）
+            4. 安裝完成後桌面會建立捷徑
+
+            ### 系統需求
+            - Windows 10 / 11
+            - Python 3.8–3.12（安裝時需勾選「Add Python to PATH」）
+            - 網路連線（首次安裝需下載模型）
