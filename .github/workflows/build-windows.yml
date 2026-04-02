@@ -20,13 +20,13 @@ jobs:
           choco install nsis --yes --no-progress
           echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      - name: Copy source files to installer directory
+      - name: Copy source files to installer directory (ASCII names for NSIS)
         shell: pwsh
         run: |
-          Copy-Item "ocr.py"                   "installer\windows\"
-          Copy-Item "ocr_ui.py"                "installer\windows\"
-          Copy-Item "OCR辨識工具（Windows）.bat" "installer\windows\"
-          Copy-Item "安裝（Windows）.bat"        "installer\windows\"
+          Copy-Item "ocr.py"      "installer\windows\"
+          Copy-Item "ocr_ui.py"   "installer\windows\"
+          Copy-Item "OCR辨識工具（Windows）.bat" "installer\windows\ocr_launcher.bat"
+          Copy-Item "安裝（Windows）.bat"        "installer\windows\install_windows.bat"
 
       - name: Build NSIS installer
         shell: cmd
