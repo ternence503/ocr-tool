@@ -1,7 +1,6 @@
 #!/bin/bash
 # OCR 辨識工具 - postinstall script
 
-# 不用 set -e，改手動處理錯誤，避免任何小問題就中斷整個安裝
 ACTUAL_USER=$(stat -f%Su /dev/console 2>/dev/null)
 if [ -z "$ACTUAL_USER" ] || [ "$ACTUAL_USER" = "root" ]; then
     ACTUAL_USER=$(logname 2>/dev/null)
@@ -13,11 +12,13 @@ ACTUAL_HOME=$(eval echo "~$ACTUAL_USER")
 
 INSTALL_DIR="$ACTUAL_HOME/.ocr-tool"
 VENV_DIR="$INSTALL_DIR/.venv"
-APP_PATH="/Applications/OCR辨識工具.app"
+# 用 printf 組合含中文的路徑，避免腳本編碼問題
+APP_NAME=$(printf '\xe8\xbe\xa8\xe8\xad\x98\xe5\xb7\xa5\xe5\x85\xb7')
+APP_PATH="/Applications/OCR${APP_NAME}.app"
 PAYLOAD_DIR="/Library/Application Support/OCRTool"
 
 show_error() {
-    sudo -u "$ACTUAL_USER" osascript -e "display dialog \"$1\" with title \"OCR 辨識工具\" buttons {\"關閉\"} default button \"關閉\" with icon stop" 2>/dev/null || true
+    sudo -u "$ACTUAL_USER" osascript -e "display dialog \"$1\" with title \"OCR Tool\" buttons {\"OK\"} default button \"OK\" with icon stop" 2>/dev/null || true
     exit 1
 }
 
@@ -37,48 +38,34 @@ for candidate in python3.12 python3.11 python3.10 python3.9 python3.8; do
 done
 
 if [ -z "$PYTHON_BIN" ]; then
-    sudo -u "$ACTUAL_USER" osascript -e 'display dialog "找不到相容的 Python（需要 3.8–3.12）。\n\n請先安裝 Python 3.12 後重新執行安裝程式：\nhttps://www.python.org/downloads/release/python-3129/" with title "OCR 辨識工具" buttons {"前往下載", "關閉"} default button "前往下載" with icon stop' 2>/dev/null | grep -q "前往下載" && \
-        sudo -u "$ACTUAL_USER" open "https://www.python.org/downloads/release/python-3129/" || true
+    sudo -u "$ACTUAL_USER" open "https://www.python.org/downloads/release/python-3129/" || true
     exit 1
 fi
 
 # ── 建立安裝目錄，複製腳本 ────────────────────────────────────
 mkdir -p "$INSTALL_DIR"
-cp "$PAYLOAD_DIR/ocr.py" "$PAYLOAD_DIR/ocr_ui.py" "$INSTALL_DIR/" || show_error "複製程式檔案失敗，請重試。"
+cp "$PAYLOAD_DIR/ocr.py" "$PAYLOAD_DIR/ocr_ui.py" "$INSTALL_DIR/" || show_error "File copy failed. Please try again."
 chown "$ACTUAL_USER" "$INSTALL_DIR/ocr.py" "$INSTALL_DIR/ocr_ui.py"
 
 # ── 建立虛擬環境 ──────────────────────────────────────────────
 if [ ! -d "$VENV_DIR" ]; then
-    "$PYTHON_BIN" -m venv "$VENV_DIR" || show_error "虛擬環境建立失敗，請重試。"
+    "$PYTHON_BIN" -m venv "$VENV_DIR" || show_error "Failed to create virtual environment."
     chown -R "$ACTUAL_USER" "$VENV_DIR"
 fi
-
-if [ ! -f "$VENV_DIR/bin/pip" ]; then
-    show_error "虛擬環境建立失敗，請重試。"
-fi
+[ ! -f "$VENV_DIR/bin/pip" ] && show_error "Failed to create virtual environment."
 
 # ── 安裝套件 ─────────────────────────────────────────────────
 sudo -u "$ACTUAL_USER" "$VENV_DIR/bin/pip" install --upgrade pip -q 2>/dev/null
 sudo -u "$ACTUAL_USER" "$VENV_DIR/bin/pip" install paddlepaddle paddleocr Pillow pymupdf -q 2>/dev/null
-if [ $? -ne 0 ]; then
-    show_error "套件安裝失敗，請確認網路連線後重試。"
-fi
+[ $? -ne 0 ] && show_error "Package installation failed. Please check your internet connection."
 
 # ── 下載辨識模型 ──────────────────────────────────────────────
 sudo -u "$ACTUAL_USER" env PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True \
     "$VENV_DIR/bin/python3" -c "
 from paddleocr import PaddleOCR
-PaddleOCR(
-    lang='ch',
-    text_detection_model_name='PP-OCRv5_mobile_det',
-    text_recognition_model_name='PP-OCRv5_mobile_rec',
-    use_doc_orientation_classify=False,
-    use_doc_unwarping=False,
-)
+PaddleOCR(lang='ch',text_detection_model_name='PP-OCRv5_mobile_det',text_recognition_model_name='PP-OCRv5_mobile_rec',use_doc_orientation_classify=False,use_doc_unwarping=False)
 " 2>/dev/null
-if [ $? -ne 0 ]; then
-    show_error "辨識模型下載失敗，請確認網路連線後重試。"
-fi
+[ $? -ne 0 ] && show_error "Model download failed. Please check your internet connection."
 
 # ── 建立 .app ─────────────────────────────────────────────────
 ICNS_PATH="$INSTALL_DIR/AppIcon.icns"
@@ -113,9 +100,7 @@ def make_frame(size):
     return img
 
 iconset = tempfile.mkdtemp(suffix='.iconset')
-for s, name in [(16,'16x16'),(32,'16x16@2x'),(32,'32x32'),(64,'32x32@2x'),
-                (128,'128x128'),(256,'128x128@2x'),(256,'256x256'),
-                (512,'256x256@2x'),(512,'512x512'),(1024,'512x512@2x')]:
+for s, name in [(16,'16x16'),(32,'16x16@2x'),(32,'32x32'),(64,'32x32@2x'),(128,'128x128'),(256,'128x128@2x'),(256,'256x256'),(512,'256x256@2x'),(512,'512x512'),(1024,'512x512@2x')]:
     make_frame(s).save(f'{iconset}/icon_{name}.png')
 subprocess.run(['iconutil','-c','icns',iconset,'-o','$ICNS_PATH'], check=True)
 shutil.rmtree(iconset)
@@ -125,21 +110,22 @@ rm -rf "$APP_PATH"
 mkdir -p "$APP_PATH/Contents/MacOS" "$APP_PATH/Contents/Resources"
 [ -f "$ICNS_PATH" ] && cp "$ICNS_PATH" "$APP_PATH/Contents/Resources/AppIcon.icns"
 
-cat > "$APP_PATH/Contents/MacOS/OCR辨識工具" << EXEC
+EXEC_PATH="$APP_PATH/Contents/MacOS/OCR${APP_NAME}"
+cat > "$EXEC_PATH" << EXEC
 #!/bin/bash
 PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True "$VENV_DIR/bin/python3" "$INSTALL_DIR/ocr_ui.py" 2>/dev/null
 EXEC
-chmod +x "$APP_PATH/Contents/MacOS/OCR辨識工具"
+chmod +x "$EXEC_PATH"
 
-cat > "$APP_PATH/Contents/Info.plist" << 'PLIST'
+cat > "$APP_PATH/Contents/Info.plist" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleExecutable</key><string>OCR辨識工具</string>
+    <key>CFBundleExecutable</key><string>OCR${APP_NAME}</string>
     <key>CFBundleIconFile</key><string>AppIcon</string>
-    <key>CFBundleName</key><string>OCR辨識工具</string>
-    <key>CFBundleDisplayName</key><string>OCR 辨識工具</string>
+    <key>CFBundleName</key><string>OCR${APP_NAME}</string>
+    <key>CFBundleDisplayName</key><string>OCR Tool</string>
     <key>CFBundleVersion</key><string>1.0.0</string>
     <key>CFBundleShortVersionString</key><string>1.0.0</string>
     <key>CFBundlePackageType</key><string>APPL</string>
@@ -151,11 +137,8 @@ cat > "$APP_PATH/Contents/Info.plist" << 'PLIST'
 PLIST
 
 chown -R "$ACTUAL_USER" "$APP_PATH" "$INSTALL_DIR"
-
-# ── 清理 ──────────────────────────────────────────────────────
 rm -rf "$PAYLOAD_DIR"
 
-# ── 完成通知 ──────────────────────────────────────────────────
-sudo -u "$ACTUAL_USER" osascript -e 'display notification "OCR 辨識工具已安裝完成，可從 Launchpad 啟動。" with title "安裝完成"' 2>/dev/null || true
+sudo -u "$ACTUAL_USER" osascript -e 'display notification "OCR Tool installed. Launch from Launchpad." with title "Installation Complete"' 2>/dev/null || true
 
 exit 0
