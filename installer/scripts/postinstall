@@ -22,9 +22,15 @@ run_as_user() {
 
 # ── 尋找相容 Python（3.8–3.12）──────────────────────────────
 PYTHON_BIN=""
-for ver in python3.12 python3.11 python3.10 python3.9 python3.8; do
-    if command -v "$ver" &>/dev/null; then
-        PYTHON_BIN=$(command -v "$ver")
+for candidate in python3.12 python3.11 python3.10 python3.9 python3.8; do
+    bin_path=$(command -v "$candidate" 2>/dev/null)
+    if [ -z "$bin_path" ]; then
+        for prefix in /opt/homebrew/bin /usr/local/bin; do
+            [ -x "$prefix/$candidate" ] && bin_path="$prefix/$candidate" && break
+        done
+    fi
+    if [ -n "$bin_path" ]; then
+        PYTHON_BIN="$bin_path"
         break
     fi
 done
