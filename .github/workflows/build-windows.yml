@@ -32,7 +32,7 @@ jobs:
         shell: cmd
         run: |
           cd installer\windows
-          makensis installer.nsi
+          makensis /INPUTCHARSET UTF8 installer.nsi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
