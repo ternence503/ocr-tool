@@ -28,6 +28,7 @@ LANG_OPTIONS = [
 # ── OCR 核心 ────────────────────────────────────────────
 
 def resize_if_needed(image_path, max_size=2000):
+    import tempfile
     from PIL import Image
     img = Image.open(image_path)
     w, h = img.size
@@ -36,7 +37,9 @@ def resize_if_needed(image_path, max_size=2000):
     ratio = max_size / max(w, h)
     new_w, new_h = int(w * ratio), int(h * ratio)
     resized = img.resize((new_w, new_h), Image.LANCZOS)
-    resized_path = image_path + '_resized.jpg'
+    # 存到系統暫存區，避免原始路徑無寫入權限（如 Photos 拖曳）
+    tmp_fd, resized_path = tempfile.mkstemp(suffix='_ocr_resized.jpg')
+    os.close(tmp_fd)
     resized.save(resized_path, quality=95)
     return resized_path, f"圖片已縮小：{w}×{h} → {new_w}×{new_h}"
 
@@ -219,7 +222,8 @@ class OCRApp:
 
         self.file_entry = tk.Entry(file_frame, textvariable=self.file_path,
                                    font=('Helvetica', 12),
-                                   relief='solid', bd=1)
+                                   relief='solid', bd=1,
+                                   bg='white', fg='#222', insertbackground='#222')
         self.file_entry.pack(side='left', padx=(5, 8), ipady=4, fill='x', expand=True)
 
         # 拖曳提示
@@ -374,9 +378,16 @@ class OCRApp:
 
     def _auto_save(self, src_path, texts):
         out_path = str(Path(src_path).with_suffix('')) + '_ocr.txt'
-        with open(out_path, 'w', encoding='utf-8') as f:
-            f.write('\n'.join(texts))
-        self._log(f"📄 已自動儲存：{out_path}")
+        try:
+            with open(out_path, 'w', encoding='utf-8') as f:
+                f.write('\n'.join(texts))
+            self._log(f"📄 已自動儲存：{out_path}")
+        except OSError:
+            # 原始路徑無寫入權限（如 Photos 暫存區），改存到桌面
+            desktop = Path.home() / 'Desktop' / (Path(src_path).stem + '_ocr.txt')
+            with open(desktop, 'w', encoding='utf-8') as f:
+                f.write('\n'.join(texts))
+            self._log(f"📄 已自動儲存至桌面：{desktop.name}")
 
     def _copy_all(self):
         text = '\n'.join(self.result_texts) if self.result_texts else self.output.get('1.0', 'end')
