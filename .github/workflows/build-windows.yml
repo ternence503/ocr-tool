@@ -9,27 +9,23 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install NSIS
         run: choco install nsis -y
 
-      - name: Copy source files to installer dir
-        shell: cmd
+      - name: Copy source files
         run: |
-          copy ocr.py installer\windows\
-          copy ocr_ui.py installer\windows\
-          copy "安裝（Windows）.bat" "installer\windows\安裝（Windows）.bat"
-          copy "OCR辨識工具（Windows）.bat" "installer\windows\OCR辨識工具（Windows）.bat"
+          Copy-Item ocr.py installer/windows/
+          Copy-Item ocr_ui.py installer/windows/
+          Copy-Item "安裝（Windows）.bat" installer/windows/
+          Copy-Item "OCR辨識工具（Windows）.bat" installer/windows/
 
       - name: Build installer
-        shell: cmd
+        working-directory: installer/windows
         run: makensis installer.nsi
-        working-directory: installer\windows
 
       - name: Upload to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: cmd
-        run: gh release upload v1.0.0 installer\windows\ocr-tool-windows.exe --clobber
+        run: gh release upload v1.0.0 installer/windows/ocr-tool-windows.exe --clobber
