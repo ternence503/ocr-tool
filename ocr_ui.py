@@ -304,16 +304,9 @@ class OCRApp:
                                    font=('Helvetica', 11), fg=C_FG_DIM, bg=C_BG)
         self.line_count.pack(side='right')
 
-        self.output = scrolledtext.ScrolledText(
-            self.root, font=('Helvetica', 12), wrap='word',
-            height=12, relief='solid', bd=1, bg=C_SURFACE, fg=C_FG,
-            insertbackground=C_FG
-        )
-        self.output.pack(fill='both', expand=True, padx=25, pady=(4, 6))
-
-        # ── 底部按鈕 ──
+        # ── 底部按鈕（先 pack，讓 expand 的文字區不會把它擠掉）──
         btn_frame = tk.Frame(self.root, bg=C_BG)
-        btn_frame.pack(pady=(0, 15))
+        btn_frame.pack(side='bottom', pady=(0, 15))
 
         for text, cmd, style_name in [
             ("複製全部", self._copy_all, 'Gray.TButton'),
@@ -322,6 +315,13 @@ class OCRApp:
         ]:
             ttk.Button(btn_frame, text=text, command=cmd,
                        style=style_name).pack(side='left', padx=8)
+
+        self.output = scrolledtext.ScrolledText(
+            self.root, font=('Helvetica', 12), wrap='word',
+            height=12, relief='solid', bd=1, bg=C_SURFACE, fg=C_FG,
+            insertbackground=C_FG
+        )
+        self.output.pack(fill='both', expand=True, padx=25, pady=(4, 6))
 
     def _on_drop(self, event):
         path = event.data.strip('{}').strip()
