@@ -16,6 +16,30 @@ APP_NAME = "OCR 辨識工具"
 APP_VERSION = "1.0.0"
 MODEL_DIR = os.path.join(Path.home(), '.paddlex', 'official_models')
 
+# ── 深色模式偵測與顏色主題 ───────────────────────────────
+def _is_dark_mode():
+    if sys.platform == 'darwin':
+        try:
+            import subprocess
+            r = subprocess.run(
+                ['defaults', 'read', '-g', 'AppleInterfaceStyle'],
+                capture_output=True, text=True
+            )
+            return r.stdout.strip().lower() == 'dark'
+        except Exception:
+            pass
+    return False
+
+_DARK = _is_dark_mode()
+
+# 顏色變數
+C_BG        = '#2d2d2d' if _DARK else '#f0f0f0'
+C_BG2       = '#3a3a3a' if _DARK else '#f0f0f0'   # frame/row 用
+C_SURFACE   = '#3d3d3d' if _DARK else 'white'      # 輸入框、拖曳區
+C_FG        = '#f0f0f0' if _DARK else '#222222'
+C_FG_DIM    = '#aaaaaa' if _DARK else '#666666'
+C_FG_HINT   = '#888888' if _DARK else '#888888'
+
 # 快取 OCR 實例，避免每次辨識重新載入模型
 _ocr_cache = {}
 
@@ -130,18 +154,21 @@ class DownloadWindow:
         self.win.geometry("420x180")
         self.win.resizable(False, False)
         self.win.grab_set()
+        self.win.configure(bg=C_BG)
         self.on_done = on_done
 
         tk.Label(self.win, text="首次使用，正在下載辨識模型",
-                 font=('Helvetica', 14, 'bold'), pady=20).pack()
+                 font=('Helvetica', 14, 'bold'), pady=20,
+                 bg=C_BG, fg=C_FG).pack()
         tk.Label(self.win, text="下載完成後即可離線使用，約需 1–3 分鐘",
-                 font=('Helvetica', 11), fg='#666').pack()
+                 font=('Helvetica', 11), fg=C_FG_DIM, bg=C_BG).pack()
 
         self.progress = ttk.Progressbar(self.win, mode='indeterminate', length=340)
         self.progress.pack(pady=15)
         self.progress.start(10)
 
-        self.status = tk.Label(self.win, text="連線中...", font=('Helvetica', 11), fg='#444')
+        self.status = tk.Label(self.win, text="連線中...", font=('Helvetica', 11),
+                               fg=C_FG_DIM, bg=C_BG)
         self.status.pack()
 
         threading.Thread(target=self._download, daemon=True).start()
@@ -170,11 +197,11 @@ class OCRApp:
     def __init__(self, root):
         self.root = root
         self.root.title(APP_NAME)
-        self.root.geometry("720x640")
+        self.root.geometry("720x700")
         self.root.resizable(True, True)
-        self.root.minsize(560, 500)
+        self.root.minsize(560, 600)
         self.root.wm_attributes('-alpha', 1.0)
-        self.root.configure(bg='#f0f0f0')
+        self.root.configure(bg=C_BG)
         self.file_path = tk.StringVar()
         self.lang = tk.StringVar(value='ch')
         self.result_texts = []
@@ -211,11 +238,11 @@ class OCRApp:
                    style='About.TButton').pack(side='right', padx=12, pady=14)
 
         # ── 檔案選擇 ──
-        file_frame = tk.Frame(self.root, bg='#f0f0f0', pady=12)
+        file_frame = tk.Frame(self.root, bg=C_BG, pady=12)
         file_frame.pack(fill='x', padx=25)
 
         tk.Label(file_frame, text="檔案：", font=('Helvetica', 13),
-                 bg='#f0f0f0').pack(side='left')
+                 bg=C_BG, fg=C_FG).pack(side='left')
 
         ttk.Button(file_frame, text="選擇檔案", command=self._browse,
                    style='Blue.TButton').pack(side='right')
@@ -223,20 +250,20 @@ class OCRApp:
         self.file_entry = tk.Entry(file_frame, textvariable=self.file_path,
                                    font=('Helvetica', 12),
                                    relief='solid', bd=1,
-                                   bg='white', fg='#222', insertbackground='#222')
+                                   bg=C_SURFACE, fg=C_FG, insertbackground=C_FG)
         self.file_entry.pack(side='left', padx=(5, 8), ipady=4, fill='x', expand=True)
 
         # 拖曳提示
         tk.Label(self.root, text="支援 JPG・PNG・PDF　（可直接拖曳檔案到視窗）",
-                 font=('Helvetica', 10), fg='#888', bg='#f0f0f0').pack()
+                 font=('Helvetica', 10), fg=C_FG_HINT, bg=C_BG).pack()
 
         # ── 拖曳區域 ──
-        drop_frame = tk.Frame(self.root, bg='white', relief='solid', bd=1)
+        drop_frame = tk.Frame(self.root, bg=C_SURFACE, relief='solid', bd=1)
         drop_frame.pack(fill='x', padx=25, pady=(8, 0))
         drop_zone = tk.Label(drop_frame,
                              text="📂  把檔案拖曳到這裡",
-                             font=('Helvetica', 13), fg='#888',
-                             bg='white', height=3, cursor='hand2')
+                             font=('Helvetica', 13), fg=C_FG_HINT,
+                             bg=C_SURFACE, height=3, cursor='hand2')
         drop_zone.pack(fill='both', expand=True)
         drop_frame.bind('<Button-1>', lambda e: self._browse())
         drop_zone.bind('<Button-1>', lambda e: self._browse())
@@ -249,14 +276,15 @@ class OCRApp:
             pass
 
         # ── 語言選擇 ──
-        lang_frame = tk.Frame(self.root, bg='#f0f0f0', pady=10)
+        lang_frame = tk.Frame(self.root, bg=C_BG, pady=10)
         lang_frame.pack()
         tk.Label(lang_frame, text="語言：", font=('Helvetica', 13),
-                 bg='#f0f0f0').pack(side='left', padx=(0, 8))
+                 bg=C_BG, fg=C_FG).pack(side='left', padx=(0, 8))
         for text, val in LANG_OPTIONS:
             tk.Radiobutton(lang_frame, text=text, variable=self.lang, value=val,
-                           font=('Helvetica', 13), bg='#f0f0f0',
-                           activebackground='#f0f0f0').pack(side='left', padx=10)
+                           font=('Helvetica', 13), bg=C_BG, fg=C_FG,
+                           selectcolor=C_BG2,
+                           activebackground=C_BG, activeforeground=C_FG).pack(side='left', padx=10)
 
         # ── 開始按鈕 + 進度條 ──
         self.run_btn = ttk.Button(self.root, text="▶  開始辨識",
@@ -268,22 +296,23 @@ class OCRApp:
         self.progress.pack(fill='x', padx=25, pady=(0, 6))
 
         # ── 結果區 ──
-        result_header = tk.Frame(self.root, bg='#f0f0f0')
+        result_header = tk.Frame(self.root, bg=C_BG)
         result_header.pack(fill='x', padx=25)
         tk.Label(result_header, text="辨識結果", font=('Helvetica', 12, 'bold'),
-                 bg='#f0f0f0').pack(side='left')
+                 bg=C_BG, fg=C_FG).pack(side='left')
         self.line_count = tk.Label(result_header, text="",
-                                   font=('Helvetica', 11), fg='#666', bg='#f0f0f0')
+                                   font=('Helvetica', 11), fg=C_FG_DIM, bg=C_BG)
         self.line_count.pack(side='right')
 
         self.output = scrolledtext.ScrolledText(
             self.root, font=('Helvetica', 12), wrap='word',
-            height=12, relief='solid', bd=1, bg='white', fg='#222'
+            height=12, relief='solid', bd=1, bg=C_SURFACE, fg=C_FG,
+            insertbackground=C_FG
         )
         self.output.pack(fill='both', expand=True, padx=25, pady=(4, 6))
 
         # ── 底部按鈕 ──
-        btn_frame = tk.Frame(self.root, bg='#f0f0f0')
+        btn_frame = tk.Frame(self.root, bg=C_BG)
         btn_frame.pack(pady=(0, 15))
 
         for text, cmd, style_name in [
@@ -329,8 +358,10 @@ class OCRApp:
         win.geometry("380x150")
         win.resizable(False, False)
         win.grab_set()
+        win.configure(bg=C_BG)
         tk.Label(win, text=f"正在下載{lang_name}模型...",
-                 font=('Helvetica', 13, 'bold'), pady=20).pack()
+                 font=('Helvetica', 13, 'bold'), pady=20,
+                 bg=C_BG, fg=C_FG).pack()
         pb = ttk.Progressbar(win, mode='indeterminate', length=300)
         pb.pack(pady=8)
         pb.start(10)
