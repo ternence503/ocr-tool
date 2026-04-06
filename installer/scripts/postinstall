@@ -53,7 +53,15 @@ fi
 PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True \
     "$VENV_DIR/bin/python3" -c "
 from paddleocr import PaddleOCR
-PaddleOCR(lang='ch',text_detection_model_name='PP-OCRv5_mobile_det',text_recognition_model_name='PP-OCRv5_mobile_rec',use_doc_orientation_classify=False,use_doc_unwarping=False)
+langs = [('ch', '中文'), ('japan', '日文'), ('en', '英文')]
+for code, _label in langs:
+    PaddleOCR(
+        lang=code,
+        text_detection_model_name='PP-OCRv5_mobile_det',
+        text_recognition_model_name='PP-OCRv5_mobile_rec',
+        use_doc_orientation_classify=False,
+        use_doc_unwarping=False,
+    )
 " || exit 1
 
 # ── 建立 .app
@@ -108,8 +116,8 @@ cat > "$APP_PATH/Contents/Info.plist" << PLIST
     <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundleName</key><string>OCR${APP_NAME}</string>
     <key>CFBundleDisplayName</key><string>OCR Tool</string>
-    <key>CFBundleVersion</key><string>1.0.0</string>
-    <key>CFBundleShortVersionString</key><string>1.0.0</string>
+    <key>CFBundleVersion</key><string>1.0.1</string>
+    <key>CFBundleShortVersionString</key><string>1.0.1</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleIdentifier</key><string>com.ternence.ocr-tool</string>
     <key>LSMinimumSystemVersion</key><string>11.0</string>

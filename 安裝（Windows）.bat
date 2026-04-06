@@ -101,7 +101,7 @@ echo.
 
 :: ── 下載辨識模型 ──────────────────────────────────────────────
 echo 正在下載辨識模型（約需 1-3 分鐘）...
-"%VENV_DIR%\Scripts\python" -c "from paddleocr import PaddleOCR; PaddleOCR(lang='ch', text_detection_model_name='PP-OCRv5_mobile_det', text_recognition_model_name='PP-OCRv5_mobile_rec', use_doc_orientation_classify=False, use_doc_unwarping=False)" 2>/dev/null
+"%VENV_DIR%\Scripts\python" -c "from paddleocr import PaddleOCR; langs=[('ch','中文'),('japan','日文'),('en','英文')]; [PaddleOCR(lang=code, text_detection_model_name='PP-OCRv5_mobile_det', text_recognition_model_name='PP-OCRv5_mobile_rec', use_doc_orientation_classify=False, use_doc_unwarping=False) for code,_label in langs]" 2>/dev/null
 if %errorlevel% neq 0 (
     echo.
     echo 模型下載失敗，請確認網路連線後重試。

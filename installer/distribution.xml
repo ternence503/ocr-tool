@@ -14,5 +14,5 @@
     <choice id="com.ternence.ocr-tool" visible="false">
         <pkg-ref id="com.ternence.ocr-tool"/>
     </choice>
-    <pkg-ref id="com.ternence.ocr-tool" version="1.0.0" onConclusion="none">OCRTool-component.pkg</pkg-ref>
+    <pkg-ref id="com.ternence.ocr-tool" version="1.0.1" onConclusion="none">OCRTool-component.pkg</pkg-ref>
 </installer-gui-script>

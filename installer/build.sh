@@ -23,7 +23,7 @@ pkgbuild \
   --root "$PAYLOAD_DIR" \
   --scripts "$SCRIPT_DIR/scripts" \
   --identifier "com.ternence.ocr-tool" \
-  --version "1.0.0" \
+  --version "1.0.1" \
   --install-location "/" \
   "$COMPONENT_PKG"
 

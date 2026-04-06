@@ -13,8 +13,9 @@ import json
 from pathlib import Path
 
 APP_NAME = "OCR 辨識工具"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 MODEL_DIR = os.path.join(Path.home(), '.paddlex', 'official_models')
+SUPPORTED_MODEL_LANGS = ('ch', 'japan', 'en')
 
 # ── 深色模式偵測與顏色主題 ───────────────────────────────
 def _is_dark_mode():
@@ -97,6 +98,16 @@ def _get_ocr(lang):
             devnull.close()
     return _ocr_cache[lang]
 
+def _warm_model(lang):
+    _get_ocr(lang)
+
+def _warm_supported_models(status_fn=None):
+    labels = {'ch': '中文', 'japan': '日文', 'en': '英文'}
+    for lang in SUPPORTED_MODEL_LANGS:
+        if status_fn:
+            status_fn(f"下載{labels.get(lang, lang)}模型...")
+        _warm_model(lang)
+
 def _ocr_image(image_path, lang, log_fn):
     import sys
     resized_path, msg = resize_if_needed(image_path)
@@ -175,8 +186,7 @@ class DownloadWindow:
 
     def _download(self):
         try:
-            self.status.config(text="下載中文模型...")
-            _get_ocr('ch')
+            _warm_supported_models(lambda msg: self.status.config(text=msg))
             self.progress.stop()
             self.status.config(text="✅ 完成！")
             self.win.after(800, self._finish)
@@ -368,8 +378,7 @@ class OCRApp:
 
         def _dl():
             try:
-                from paddleocr import PaddleOCR
-                PaddleOCR(lang=lang)
+                _warm_model(lang)
                 pb.stop()
                 win.destroy()
                 callback()

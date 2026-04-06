@@ -75,9 +75,17 @@ echo ""
 echo "▶ 下載辨識模型（約需 1–3 分鐘）..."
 PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True "$VENV_DIR/bin/python3" -c "
 from paddleocr import PaddleOCR
-print('   下載中文模型...')
-PaddleOCR(lang='ch', text_detection_model_name='PP-OCRv5_mobile_det', text_recognition_model_name='PP-OCRv5_mobile_rec', use_doc_orientation_classify=False, use_doc_unwarping=False)
-print('   ✅ 中文模型下載完成')
+langs = [('ch', '中文'), ('japan', '日文'), ('en', '英文')]
+for code, label in langs:
+    print(f'   下載{label}模型...')
+    PaddleOCR(
+        lang=code,
+        text_detection_model_name='PP-OCRv5_mobile_det',
+        text_recognition_model_name='PP-OCRv5_mobile_rec',
+        use_doc_orientation_classify=False,
+        use_doc_unwarping=False,
+    )
+    print(f'   ✅ {label}模型下載完成')
 " 2>/dev/null
 
 if [ $? -ne 0 ]; then
@@ -154,7 +162,7 @@ cat > "$APP_PATH/Contents/Info.plist" << 'PLIST'
     <key>CFBundleName</key>
     <string>OCR辨識工具</string>
     <key>CFBundleVersion</key>
-    <string>1.0.0</string>
+    <string>1.0.1</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
 </dict>
