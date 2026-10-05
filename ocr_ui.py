@@ -11,6 +11,7 @@ import os
 import sys
 import subprocess
 import tempfile
+from glob import escape as glob_escape
 import json
 from pathlib import Path
 
@@ -63,21 +64,42 @@ def open_file(path):
     else:
         subprocess.run(['xdg-open', str(path)], check=False)
 
+_SOURCE_EXTS = {'.jpg', '.jpeg', '.png', '.pdf'}
+
+def ocr_output_path(src_path):
+    """輸出檔路徑：<原檔名>_ocr.txt。同資料夾若有同名但副檔名不同的來源檔（a.jpg 與 a.png），
+    改用 <原檔名>_<副檔名>_ocr.txt，避免兩份辨識結果互相覆蓋。"""
+    src = Path(src_path)
+    clash = any(p != src and p.suffix.lower() in _SOURCE_EXTS and p.stem == src.stem
+                for p in src.parent.glob(glob_escape(src.stem) + '.*'))
+    name = f"{src.stem}_{src.suffix.lstrip('.').lower()}_ocr.txt" if clash else f"{src.stem}_ocr.txt"
+    return src.parent / name
+
 def resize_if_needed(image_path, max_size=2000):
     import tempfile
     from PIL import Image
-    img = Image.open(image_path)
-    w, h = img.size
-    if max(w, h) <= max_size:
-        return image_path, None
-    ratio = max_size / max(w, h)
-    new_w, new_h = int(w * ratio), int(h * ratio)
-    resized = img.resize((new_w, new_h), Image.LANCZOS)
-    # 存到系統暫存區，避免原始路徑無寫入權限（如 Photos 拖曳）
-    tmp_fd, resized_path = tempfile.mkstemp(suffix='_ocr_resized.jpg')
-    os.close(tmp_fd)
-    resized.convert('RGB').save(resized_path, quality=95)
-    return resized_path, f"圖片已縮小：{w}×{h} → {new_w}×{new_h}"
+    from PIL import ImageOps
+    with Image.open(image_path) as img:
+        # 手機直拍的照片常靠 EXIF 方向標記，不校正會被當成橫的辨識
+        rotated = img.getexif().get(0x0112, 1) not in (0, 1)
+        img = ImageOps.exif_transpose(img)
+        w, h = img.size
+        too_big = max(w, h) > max_size
+        if not rotated and not too_big:
+            return image_path, None
+        msgs = []
+        if too_big:
+            ratio = max_size / max(w, h)
+            new_w, new_h = int(w * ratio), int(h * ratio)
+            img = img.resize((new_w, new_h), Image.LANCZOS)
+            msgs.append(f"圖片已縮小：{w}×{h} → {new_w}×{new_h}")
+        if rotated:
+            msgs.append("已依 EXIF 方向標記校正圖片方向")
+        # 存到系統暫存區，避免原始路徑無寫入權限（如 Photos 拖曳）
+        tmp_fd, resized_path = tempfile.mkstemp(suffix='_ocr_resized.jpg')
+        os.close(tmp_fd)
+        img.convert('RGB').save(resized_path, quality=95)
+    return resized_path, '；'.join(msgs)
 
 def run_ocr(file_path, lang, log_fn):
     from paddleocr import PaddleOCR
@@ -147,13 +169,22 @@ def _ocr_image(image_path, lang, log_fn):
 def _ocr_pdf(pdf_path, lang, log_fn):
     import fitz
     all_texts = []
+    try:
+        doc = fitz.open(pdf_path)
+    except Exception as e:
+        raise RuntimeError(f"無法開啟 PDF（檔案可能損毀）：{e}") from e
+    if doc.needs_pass:
+        doc.close()
+        raise RuntimeError("這份 PDF 有密碼保護，請先解除密碼再辨識")
     # 頁面圖放在專用暫存資料夾（檔名不可預測、同時開兩個實例也不會互相覆蓋），離開時整個刪除
-    with tempfile.TemporaryDirectory(prefix='ocr_pdf_') as tmp_dir, fitz.open(pdf_path) as doc:
+    with tempfile.TemporaryDirectory(prefix='ocr_pdf_') as tmp_dir, doc:
         log_fn(f"PDF 共 {len(doc)} 頁")
         for i, page in enumerate(doc):
             log_fn(f"辨識第 {i+1} 頁...")
             tmp_path = os.path.join(tmp_dir, f'page_{i}.jpg')
-            pix = page.get_pixmap(dpi=150)
+            # 依頁面大小決定解析度：長邊渲染不超過 2000px，大圖紙不會先產生巨大圖片
+            long_pt = max(page.rect.width, page.rect.height) or 1
+            pix = page.get_pixmap(dpi=max(36, min(150, int(2000 * 72 / long_pt))))
             with open(tmp_path, 'wb') as f:
                 f.write(pix.tobytes("jpeg"))
             resized_path, msg = resize_if_needed(tmp_path)
@@ -347,8 +378,16 @@ class OCRApp:
         self.output.pack(fill='both', expand=True, padx=25, pady=(4, 6))
 
     def _on_drop(self, event):
-        path = event.data.strip('{}').strip()
-        self.file_path.set(path)
+        # Tk 對含空白的路徑會加大括號、多檔用空白分隔；用 splitlist 正確拆開，只取第一個檔
+        try:
+            paths = self.root.tk.splitlist(event.data)
+        except Exception:
+            paths = [event.data.strip('{}').strip()]
+        if not paths:
+            return
+        if len(paths) > 1:
+            self._log(f"一次拖入 {len(paths)} 個檔案，一次只能辨識一個，已選第一個：{os.path.basename(paths[0])}")
+        self.file_path.set(paths[0])
 
     def _browse(self):
         path = filedialog.askopenfilename(
@@ -430,17 +469,20 @@ class OCRApp:
             self.run_btn.config(state='normal')
 
     def _auto_save(self, src_path, texts):
-        out_path = str(Path(src_path).with_suffix('')) + '_ocr.txt'
+        out_path = str(ocr_output_path(src_path))
         try:
             with open(out_path, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(texts))
             self._log(f"📄 已自動儲存：{out_path}")
         except OSError:
             # 原始路徑無寫入權限（如 Photos 暫存區），改存到桌面
-            desktop = Path.home() / 'Desktop' / (Path(src_path).stem + '_ocr.txt')
-            with open(desktop, 'w', encoding='utf-8') as f:
-                f.write('\n'.join(texts))
-            self._log(f"📄 已自動儲存至桌面：{desktop.name}")
+            desktop = Path.home() / 'Desktop' / ocr_output_path(src_path).name
+            try:
+                with open(desktop, 'w', encoding='utf-8') as f:
+                    f.write('\n'.join(texts))
+                self._log(f"📄 已自動儲存至桌面：{desktop.name}")
+            except OSError as e:
+                self._log(f"⚠️ 無法自動儲存（{e}），請按「另存新檔」手動儲存")
 
     def _copy_all(self):
         text = '\n'.join(self.result_texts) if self.result_texts else self.output.get('1.0', 'end')
