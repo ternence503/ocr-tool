@@ -9,6 +9,8 @@ from tkinter import ttk, filedialog, scrolledtext, messagebox
 import threading
 import os
 import sys
+import subprocess
+import tempfile
 import json
 from pathlib import Path
 
@@ -52,6 +54,15 @@ LANG_OPTIONS = [
 
 # ── OCR 核心 ────────────────────────────────────────────
 
+def open_file(path):
+    """用系統預設程式開檔；不經 shell，檔名含引號或特殊字元也安全。"""
+    if sys.platform == 'darwin':
+        subprocess.run(['open', str(path)], check=False)
+    elif sys.platform.startswith('win'):
+        os.startfile(str(path))
+    else:
+        subprocess.run(['xdg-open', str(path)], check=False)
+
 def resize_if_needed(image_path, max_size=2000):
     import tempfile
     from PIL import Image
@@ -65,7 +76,7 @@ def resize_if_needed(image_path, max_size=2000):
     # 存到系統暫存區，避免原始路徑無寫入權限（如 Photos 拖曳）
     tmp_fd, resized_path = tempfile.mkstemp(suffix='_ocr_resized.jpg')
     os.close(tmp_fd)
-    resized.save(resized_path, quality=95)
+    resized.convert('RGB').save(resized_path, quality=95)
     return resized_path, f"圖片已縮小：{w}×{h} → {new_w}×{new_h}"
 
 def run_ocr(file_path, lang, log_fn):
@@ -123,8 +134,9 @@ def _ocr_image(image_path, lang, log_fn):
     finally:
         sys.stderr = old_stderr
         devnull.close()
-    if resized_path != image_path and os.path.exists(resized_path):
-        os.remove(resized_path)
+        # 縮圖暫存檔：OCR 出錯也要清掉（裡面是使用者文件內容）
+        if resized_path != image_path and os.path.exists(resized_path):
+            os.remove(resized_path)
     texts = []
     for res in result:
         for line in res['rec_texts']:
@@ -135,25 +147,26 @@ def _ocr_image(image_path, lang, log_fn):
 def _ocr_pdf(pdf_path, lang, log_fn):
     import fitz
     all_texts = []
-    doc = fitz.open(pdf_path)
-    log_fn(f"PDF 共 {len(doc)} 頁")
-    for i, page in enumerate(doc):
-        log_fn(f"辨識第 {i+1} 頁...")
-        tmp_path = f'/tmp/ocr_pdf_page_{i}.jpg'
-        pix = page.get_pixmap(dpi=150)
-        with open(tmp_path, 'wb') as f:
-            f.write(pix.tobytes("jpeg"))
-        resized_path, msg = resize_if_needed(tmp_path)
-        if msg:
-            log_fn(msg)
-        texts = _ocr_image(resized_path, lang, lambda m: None)
-        all_texts.append(f"=== 第 {i+1} 頁 ===")
-        all_texts.extend(texts)
-        all_texts.append("")
-        if resized_path != tmp_path and os.path.exists(resized_path):
-            os.remove(resized_path)
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
+    # 頁面圖放在專用暫存資料夾（檔名不可預測、同時開兩個實例也不會互相覆蓋），離開時整個刪除
+    with tempfile.TemporaryDirectory(prefix='ocr_pdf_') as tmp_dir, fitz.open(pdf_path) as doc:
+        log_fn(f"PDF 共 {len(doc)} 頁")
+        for i, page in enumerate(doc):
+            log_fn(f"辨識第 {i+1} 頁...")
+            tmp_path = os.path.join(tmp_dir, f'page_{i}.jpg')
+            pix = page.get_pixmap(dpi=150)
+            with open(tmp_path, 'wb') as f:
+                f.write(pix.tobytes("jpeg"))
+            resized_path, msg = resize_if_needed(tmp_path)
+            if msg:
+                log_fn(msg)
+            try:
+                texts = _ocr_image(resized_path, lang, lambda m: None)
+            finally:
+                if resized_path != tmp_path and os.path.exists(resized_path):
+                    os.remove(resized_path)
+            all_texts.append(f"=== 第 {i+1} 頁 ===")
+            all_texts.extend(texts)
+            all_texts.append("")
     return all_texts
 
 # ── 首次啟動下載模型視窗 ─────────────────────────────────
@@ -449,7 +462,7 @@ class OCRApp:
             with open(save_path, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(self.result_texts))
             self._log(f"✅ 已儲存：{save_path}")
-            os.system(f'open "{save_path}"') if sys.platform == 'darwin' else os.startfile(save_path)
+            open_file(save_path)
 
     def _clear(self):
         self.output.delete('1.0', 'end')
